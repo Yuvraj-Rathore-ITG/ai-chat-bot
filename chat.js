@@ -11,7 +11,6 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-app.options('*', cors());
 
 app.use(express.json());
 // Replace with your Shopify store details and token
