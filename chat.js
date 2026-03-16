@@ -1,46 +1,42 @@
-require("dotenv").config();
 const express = require('express');
 const axios = require('axios');
-const app = express();
 const cors = require('cors');
-const port = 3000;
+
+const app = express();
+const port = process.env.PORT || 3000;
 
 app.use(cors({
-  origin: ['https://yuvraj-practice.myshopify.com'], // for testing only
-  methods: ['GET', 'POST'],
+  origin: [
+    'https://yuvraj-practice.myshopify.com'
+  ],
+  methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
-// Middleware to parse JSON body data
+
+app.options('*', cors());
+
 app.use(express.json());
 
-// Replace with your Shopify store details and token
 const SHOPIFY_STORE_URL = 'https://yuvraj-practice.myshopify.com';
-const ACCESS_TOKEN = 'shpua_8f5f22f50ecfc701bf0a1fe69cafa794';
+const ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
 
+app.get('/', (req, res) => {
+  res.send('Server is running');
+});
 
-// API route to handle chatbot requests
 app.post('/track-order', async (req, res) => {
   const { email, orderNumber } = req.body;
 
-  // Define the GraphQL query for fetching order by email and order number
   const query = `
-    query getOrder($email: String!, $orderNumber: String!) {
-      orders(first: 1, query: "email:order.itgeeks@gmail.com order_number:1130") {
+    query getOrders($query: String!) {
+      orders(first: 1, query: $query) {
         edges {
           node {
             id
-            orderNumber
-            financialStatus
-            fulfillmentStatus
+            name
+            displayFinancialStatus
+            displayFulfillmentStatus
             createdAt
-            lineItems(first: 5) {
-              edges {
-                node {
-                  title
-                  quantity
-                }
-              }
-            }
           }
         }
       }
@@ -48,42 +44,39 @@ app.post('/track-order', async (req, res) => {
   `;
 
   try {
-    // Make a request to the Shopify GraphQL Admin API
+    const searchQuery = \`email:${email} AND name:#${orderNumber}\`;
+
     const response = await axios.post(
-      `${SHOPIFY_STORE_URL}/admin/api/2023-01/graphql.json`, 
+      \`${SHOPIFY_STORE_URL}/admin/api/2026-01/graphql.json\`,
       {
-        query: query,
+        query,
         variables: {
-          email: email,
-          orderNumber: orderNumber
+          query: searchQuery
         }
       },
       {
         headers: {
           'Content-Type': 'application/json',
-          'X-Shopify-Access-Token': ACCESS_TOKEN // Authorization with access token
+          'X-Shopify-Access-Token': ACCESS_TOKEN
         }
       }
     );
 
-    // Check if the order is found
-    const orderData = response.data.data.orders.edges[0]?.node;
+    const orderData = response?.data?.data?.orders?.edges?.[0]?.node;
 
-    if (orderData) {
-      res.json({
-        message: `Your order #${orderData.orderNumber} is currently ${orderData.financialStatus}.`
-      });
-    } else {
-      res.status(404).json({ message: 'Order not found' });
+    if (!orderData) {
+      return res.status(404).json({ message: 'Order not found' });
     }
+
+    return res.json({
+      message: \`Your order ${orderData.name} is currently ${orderData.displayFinancialStatus} and ${orderData.displayFulfillmentStatus}.\`
+    });
   } catch (error) {
-    console.error('Error fetching order:', error);
-    res.status(500).json({ message: 'Failed to fetch order details' });
-    
+    console.error('Shopify error:', error?.response?.data || error.message);
+    return res.status(500).json({ message: 'Failed to fetch order details' });
   }
 });
 
-// Start the server
-app.listen(port, () => {
-  console.log(`Server is running on http://localhost:${port}`);
+app.listen(port, '0.0.0.0', () => {
+  console.log(\`Server is running on port ${port}\`);
 });
