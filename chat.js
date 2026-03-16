@@ -1,14 +1,22 @@
+require("dotenv").config();
 const express = require('express');
 const axios = require('axios');
 const app = express();
+const cors = require('cors');
 const port = 3000;
 
+app.use(cors({
+  origin: ['https://yuvraj-practice.myshopify.com'], // for testing only
+  methods: ['GET', 'POST'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 // Middleware to parse JSON body data
 app.use(express.json());
 
 // Replace with your Shopify store details and token
 const SHOPIFY_STORE_URL = 'https://yuvraj-practice.myshopify.com';
 const ACCESS_TOKEN = 'shpua_8f5f22f50ecfc701bf0a1fe69cafa794';
+
 
 // API route to handle chatbot requests
 app.post('/track-order', async (req, res) => {
